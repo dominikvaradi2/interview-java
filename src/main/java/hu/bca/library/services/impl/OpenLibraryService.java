@@ -16,10 +16,14 @@ import org.springframework.web.client.RestTemplate;
 
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @Log4j2
 public class OpenLibraryService implements BookFirstPublishYearRetrieverService {
+    private final Pattern yearPattern = Pattern.compile("(\\d{4})");
+
     @Value("${open-library.works-api.base-url}")
     private String openLibraryWorksApiBaseUrl;
     @Value("${open-library.fetch-retry-count}")
@@ -35,7 +39,7 @@ public class OpenLibraryService implements BookFirstPublishYearRetrieverService 
     @Override
     public CompletableFuture<BookWithFirstPublishYearResult> retrieveBookFirstPublishYearAsync(Book book) {
         Optional<Integer> result = this.retrieveBookFirstPublishYearWithRetry(book, openLibraryFetchRetryCount);
-        
+
         return CompletableFuture.completedFuture(new BookWithFirstPublishYearResult(book, result));
     }
 
@@ -75,10 +79,15 @@ public class OpenLibraryService implements BookFirstPublishYearRetrieverService 
             throw new OpenLibraryException("Unexpected error occurred when calling open library works api.", response.getStatusCode());
         }
 
-        log.debug(response);
+        Optional<String> firstPublishDate = Optional.ofNullable(response.getBody().first_publish_date());
+        return firstPublishDate.map(s -> {
+            Matcher matcher = yearPattern.matcher(s);
+            if (!matcher.find()) {
+                return null;
+            }
 
-        Optional<String> firstPublishDate = response.getBody().first_publish_date();
-        return firstPublishDate.map(s -> Integer.parseInt(s.substring(s.length() - 4)));
+            return Integer.parseInt(matcher.group());
+        });
 
     }
 }

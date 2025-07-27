@@ -50,17 +50,20 @@ public class BookServiceImpl implements BookService {
     public Collection<Book> updateAllWithFirstPublishYear() {
         Iterable<Book> books = this.bookRepository.findAll();
 
-        List<Book> updatedBooks = StreamSupport.stream(books.spliterator(), false)
-                .map(bookFirstPublishYearRetrieverService::retrieveBookFirstPublishYearAsync)
-                .map(cf -> cf.thenApply(result -> {
-                    result.book().setYear(result.firstPublishYear().orElse(null));
+        CompletableFuture[] futures = StreamSupport.stream(books.spliterator(), false)
+                .map(book -> bookFirstPublishYearRetrieverService.retrieveBookFirstPublishYearAsync(book)
+                        .thenAccept(result -> result.book().setYear(result.firstPublishYear().orElse(null))))
+                .toArray(CompletableFuture[]::new);
 
-                    return result.book();
-                })).map(CompletableFuture::join).toList();
+        CompletableFuture.allOf(futures).join();
 
-
-        Iterable<Book> savedBooks = this.bookRepository.saveAll(updatedBooks);
+        Iterable<Book> savedBooks = this.bookRepository.saveAll(books);
 
         return StreamSupport.stream(savedBooks.spliterator(), false).toList();
+    }
+
+    @Override
+    public Collection<Book> getAllByAuthorCountryCode(String authorCountryCode, Integer firstReleaseYearFrom) {
+        return this.bookRepository.findAllByAuthorCountryCodeAndOptionallyFirstReleaseYearAfter(authorCountryCode, firstReleaseYearFrom);
     }
 }

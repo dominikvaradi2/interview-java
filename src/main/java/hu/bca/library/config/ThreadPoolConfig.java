@@ -12,9 +12,10 @@ public class ThreadPoolConfig {
     public ThreadPoolTaskExecutor taskExecutor() {
         ThreadPoolTaskExecutor poolExecutor = new ThreadPoolTaskExecutor();
 
-        poolExecutor.setThreadNamePrefix("BasicThread-");
+        poolExecutor.setThreadNamePrefix("TaskExecutorThread-");
         poolExecutor.setCorePoolSize(2);
         poolExecutor.setMaxPoolSize(8);
+        poolExecutor.setQueueCapacity(500);
         poolExecutor.initialize();
 
         return poolExecutor;
